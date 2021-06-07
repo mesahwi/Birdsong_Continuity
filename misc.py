@@ -196,7 +196,7 @@ def get_syllable_pairs(audioevt_properties, spectral_activity):
     '''
     syllable_path_pairs = {}
     # print('Computing DTW, and pairing syllables')
-    for i in audioevt_properties['evt_id'], position=0, leave=True:
+    for i in audioevt_properties['evt_id']:
         for j in audioevt_properties['evt_id']:
             syllable_path_pairs[(i,j)] = path_for_pair(spectral_activity[i,:],spectral_activity[j,:])
             
