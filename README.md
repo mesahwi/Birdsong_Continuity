@@ -11,6 +11,6 @@ Further preprocessing is required before running KNN. Refer to the folder 'examp
 
 To load the KNN results, run:
 ```
-load_results.sh
+bash load_results.sh
 ```
 Again, example code to analyze the results are in the folder 'example_runs'.
