@@ -5,6 +5,7 @@ import fastdtw
 import matplotlib.pyplot as plt
 import seaborn as sns
 import librosa, librosa.display
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def ms2samples(ms, sampling_rate_kHz=20):
@@ -142,37 +143,29 @@ def get_neural_activity_with_index(neural_activity):
     '''
     return np.concatenate((np.arange(neural_activity.shape[0]).reshape((neural_activity.shape[0],1)),neural_activity), axis=1)
 
-def plot_raster(audioevt_onset, neural_properties_list, file_num, rendition_num, neural_window, sr_khz=20, channel_min=0, channel_max=308, channels_of_interest=None):
+
+def plot_raster(neural_data, rendition_number, channels_of_interest, neural_bin_size, x_tick_every=50, y_tick_every=30, figsize=(10,10)):
     '''
-    Draws a raster plot given file and rendition number, and the window.
-    channels_of_interest 
+    Draws a raster plot, given neural rendtion and channels of interest
     '''
-    rendition = audioevt_onset[file_num][rendition_num]
-    data_for_raster = []
+    neural_rendition = neural_data[rendition_number].reshape(len(channels_of_interest),-1)
+    num_channels, num_timepoints = neural_rendition.shape
     
-    if channels_of_interest is None:
-        for channel in range(channel_min, channel_max+1):
-            if channel in neural_properties_list[file_num]['channel_id'].values:
-                activity = channel_activity(rendition, neural_window, channel, neural_properties_list[file_num])
-                nonzero_indexes = (np.argwhere(activity>0)).flatten()
-                data_for_raster.append(nonzero_indexes/sr_khz)
-            else:
-                data_for_raster.append(np.array([]))
-                
-        plt.ylabel('Channel id')
-        plt.xlabel('Time(ms)')
-        plt.eventplot(data_for_raster);
-        
+    fig, ax = plt.subplots(1,1, figsize=figsize)
+    ax.set_xticks(np.arange(0,num_timepoints,x_tick_every))
+    if neural_bin_size is not None and neural_bin_size>0:
+        ax.set_xticklabels(np.arange(0,num_timepoints,x_tick_every)/samples2ms(neural_bin_size))
+        ax.set_xlabel('Time (ms)')
     else:
-        for channel in channels_of_interest:
-            activity = channel_activity(rendition, neural_window, channel, neural_properties_list[file_num])
-            nonzero_indexes = (np.argwhere(activity>0)).flatten()
-            data_for_raster.append(nonzero_indexes/sr_khz)
-        
-        plt.ylabel('Channel id')
-        plt.xlabel('Time(ms)')
-        plt.eventplot(data_for_raster, lineoffsets=channels_of_interest);
-    
+        ax.set_xlabel('Timepoints')
+    ax.set_yticks(np.arange(0,num_channels, y_tick_every))
+    ax.set_yticklabels(channels_of_interest[::y_tick_every])
+    ax.set_ylabel('Channel id')
+    im = ax.imshow(neural_rendition);
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+
+    fig.colorbar(im, cax=cax, ticks=np.arange(neural_rendition.min(),neural_rendition.max()+1))
     
     
 ### functions for DTW ###
