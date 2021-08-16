@@ -73,7 +73,6 @@ def _distance_function(u, v, is_spectral, nchannels, syllable_path_pairs=None, h
         v_values_2d = v[0:].reshape((nchannels,-1))
 
 
-
     ### define which metric to use
     if is_spectral:
         metric = distance.euclidean
@@ -116,7 +115,7 @@ def _distance_function(u, v, is_spectral, nchannels, syllable_path_pairs=None, h
             u_aligned_2d.append(u_aligned_strip.flatten())
             v_aligned_2d.append(v_aligned_strip.flatten())
     else:
-        for channel in channels:
+        for channel in range(nchannels):
             u_aligned_strip = np.array(u_values_2d[channel,:])
             v_aligned_strip = np.array(v_values_2d[channel,:])
             
@@ -144,7 +143,7 @@ def visualize_aligned(sylA, sylB, is_spectral, channels_of_interest=None, syllab
     '''
     
     if is_spectral:
-        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, is_spectral=is_spectral, nchannels=128, syllable_path_pairs=syllable_path_pairs, align=align, return_aligned_arrays=True)
+        sylA_aligned, sylB_aligned = _distance_function(sylA, sylB, is_spectral=is_spectral, nchannels=128, syllable_path_pairs=syllable_path_pairs, align=align, return_aligned_arrays=True)
         print(f'Syllable_A spectrogram shape {sylA_aligned.shape}, Syllable_B spectrogram shape{sylB_aligned.shape}')
         plot_spectrogram(sylA_aligned, title='Syllable_A Spectrogram')
         plot_spectrogram(sylB_aligned, title='Syllable_B Spectrogram')
@@ -152,7 +151,7 @@ def visualize_aligned(sylA, sylB, is_spectral, channels_of_interest=None, syllab
     else:
         if channels_of_interest is None or neural_bin_size is None:
             raise ValueError('Please specify channels of interest')
-        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, is_spectral=is_spectral, nchannels=len(channels_of_interest), syllable_path_pairs=syllable_path_pairs, align=align, return_aligned_arrays=True)
+        sylA_aligned, sylB_aligned = _distance_function(sylA, sylB, is_spectral=is_spectral, nchannels=len(channels_of_interest), syllable_path_pairs=syllable_path_pairs, align=align, return_aligned_arrays=True)
         print(f'Syllable_A neural shape {sylA_aligned.shape}, Syllable_B neural shape{sylB_aligned.shape}')
         plot_raster(sylA_aligned, channels_of_interest, neural_bin_size, title='Syllable_A Neural Data')
         plot_raster(sylB_aligned, channels_of_interest, neural_bin_size, title='Syllable_B Neural Data')
@@ -193,7 +192,7 @@ def continuity_computation(neural_properties_list, spec_files, audioevt_properti
         return _distance_function(u, v, is_spectral=False, nchannels=len(channels_of_interest), syllable_path_pairs=syllable_path_pairs, align=align)
 
     def spectral_metric(u,v):
-        return _distance_function(u, v, is_spectral=True, nchannels=128, syllable_path_pairs=syllable_path_pairs, aign=align)    
+        return _distance_function(u, v, is_spectral=True, nchannels=128, syllable_path_pairs=syllable_path_pairs, align=align)    
 
     # neural knn
     ## All num_syllables nearest neighbors are computed because we need full tables of ranked indexes and distances
