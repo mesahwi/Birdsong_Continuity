@@ -45,7 +45,7 @@ def emd_extension(u_vec, v_vec, sigma=1):
     
     
 
-def _distance_with_alignment(u, v, syllable_path_pairs, is_spectral, nchannels, how_many_bins=-1):
+def _distance_function(u, v, syllable_path_pairs, is_spectral, nchannels, how_many_bins=-1, align=True, return_aligned_arrays=False):
     '''
     u and v are vectors from the spectral or neural data, with the 0th entry representing rendition index.
     The 0th entry is to be used for dtw alignment.
@@ -62,9 +62,13 @@ def _distance_with_alignment(u, v, syllable_path_pairs, is_spectral, nchannels, 
     ## extract id for pair
     u_id = u[0]
     v_id = v[0]
+    try:
+        u_values_2d = u[1:].reshape((nchannels,-1))
+        v_values_2d = v[1:].reshape((nchannels,-1))
+    except:
+        u_values_2d = u[0:].reshape((nchannels,-1))
+        v_values_2d = v[0:].reshape((nchannels,-1))
 
-    u_values_2d = u[1:].reshape((nchannels,-1))
-    v_values_2d = v[1:].reshape((nchannels,-1))
 
 
     ### define which metric to use
@@ -80,33 +84,41 @@ def _distance_with_alignment(u, v, syllable_path_pairs, is_spectral, nchannels, 
     u_aligned_2d = []
     v_aligned_2d = []
     
-    for channel in range(nchannels):
-        '''
-        The following is a labyrinth of a code to match the neural data with the spectral time warped indices.
-        pair_step_size : how many neural segments correspond to one spectral segment (ex. if 6neural & 15spectral, 0.4 neural segments correspond to 1 spectral segment)
-
-        If pair_step_size<1, i.e. less than one neural segments correspond to one spectral segment, we duplicate the neural segments to match a spectral segment.
-        If more than one neural segments correspond to one spectral segment, we take multiple neural segments to match a spectral segment.
-        '''
-        if pair_step_size < 1:  
-            u_aligned_strip = []
-            v_aligned_strip = []
-            for pair in syllable_path_pairs[(u_id, v_id)]:
-                u_col_idx = int(pair[0]*pair_step_size)
-                v_col_idx = int(pair[1]*pair_step_size)
+    if align:
+        for channel in range(nchannels):
+            '''
+            The following is a labyrinth of a code to match the neural data with the spectral time warped indices.
+            pair_step_size : how many neural segments correspond to one spectral segment (ex. if 6neural & 15spectral, 0.4 neural segments correspond to 1 spectral segment)
+    
+            If pair_step_size<1, i.e. less than one neural segments correspond to one spectral segment, we duplicate the neural segments to match a spectral segment.
+            If more than one neural segments correspond to one spectral segment, we take multiple neural segments to match a spectral segment.
+            '''
+            if pair_step_size < 1:  
+                u_aligned_strip = []
+                v_aligned_strip = []
+                for pair in syllable_path_pairs[(u_id, v_id)]:
+                    u_col_idx = int(pair[0]*pair_step_size)
+                    v_col_idx = int(pair[1]*pair_step_size)
+                    
+                    u_aligned_strip.append(u_values_2d[channel, u_col_idx])
+                    v_aligned_strip.append(v_values_2d[channel, v_col_idx])
+        
+                u_aligned_strip = np.array(u_aligned_strip)   ## vector of length (num warped pairs), num warped pairs >= number of segments because time warping results in duplicate accessing of segments
+                v_aligned_strip = np.array(v_aligned_strip)
                 
-                u_aligned_strip.append(u_values_2d[channel, u_col_idx])
-                v_aligned_strip.append(v_values_2d[channel, v_col_idx])
-    
-            u_aligned_strip = np.array(u_aligned_strip)   ## vector of length (num warped pairs), num warped pairs >= number of segments because time warping results in duplicate accessing of segments
-            v_aligned_strip = np.array(v_aligned_strip)
+            else:
+                u_aligned_strip = np.array([u_values_2d[channel,int(pair[0]*pair_step_size):int((pair[0]+1)*pair_step_size)] for pair in syllable_path_pairs[(u_id, v_id)]])  ##shape (num warped pairs, number of segments)
+                v_aligned_strip = np.array([v_values_2d[channel,int(pair[1]*pair_step_size):int((pair[1]+1)*pair_step_size)] for pair in syllable_path_pairs[(u_id, v_id)]])
+        
+            u_aligned_2d.append(u_aligned_strip.flatten())
+            v_aligned_2d.append(v_aligned_strip.flatten())
+    else:
+        for channel in channels:
+            u_aligned_strip = np.array(u_values_2d[channel,:])
+            v_aligned_strip = np.array(v_values_2d[channel,:])
             
-        else:
-            u_aligned_strip = np.array([u_values_2d[channel,int(pair[0]*pair_step_size):int((pair[0]+1)*pair_step_size)] for pair in syllable_path_pairs[(u_id, v_id)]])  ##shape (num warped pairs, number of segments)
-            v_aligned_strip = np.array([v_values_2d[channel,int(pair[1]*pair_step_size):int((pair[1]+1)*pair_step_size)] for pair in syllable_path_pairs[(u_id, v_id)]])
-    
-        u_aligned_2d.append(u_aligned_strip.flatten())
-        v_aligned_2d.append(v_aligned_strip.flatten())
+            u_aligned_2d.append(u_aligned_strip)
+            v_aligned_2d.append(v_aligned_strip)
             
     u_aligned_2d = np.array(u_aligned_2d)  ## shape (nchannels, num warped pairs * number of segments)
     v_aligned_2d = np.array(v_aligned_2d)  ## shape (nchannels, num warped pairs * number of segments)
@@ -117,11 +129,36 @@ def _distance_with_alignment(u, v, syllable_path_pairs, is_spectral, nchannels, 
         dist = metric(u_aligned_2d[i,:], v_aligned_2d[i,:])
         pairwise_distances.append(dist)
     
-    return np.mean(pairwise_distances)
+    if return_aligned_arrays:
+        return u_aligned_2d, v_aligned_2d
+    else:
+        return np.mean(pairwise_distances)
+    
+    
+def visualize_aligned(sylA, sylB, syllable_path_pairs, is_spectral, channels_of_interest=None, neural_bin_size=None):
+    '''
+    Please provide sylA, sylB as vectors
+    '''
+    
+    if is_spectral:
+        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, syllable_path_pairs, is_spectral=is_spectral, nchannels=128, align=True, return_aligned_arrays=True)
+        print(sylA_aligned.shape, sylB_aligned.shape)
+        plot_spectrogram(sylA_aligned, title='Syllable_A Spectrogram')
+        plot_spectrogram(sylB_aligned, title='Syllable_B Spectrogram')
+        
+    else:
+        if channels_of_interest is None or neural_bin_size is None:
+            raise ValueError('Please specify channels of interest')
+        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, syllable_path_pairs, is_spectral=is_spectral, nchannels=len(channels_of_interest), align=True, return_aligned_arrays=True)
+        plot_raster(sylA_aligned, channels_of_interest, neural_bin_size, title='Syllable_A Neural Data')
+        plot_raster(sylB_aligned, channels_of_interest, neural_bin_size, title='Syllable_B Neural Data')
+        
+        
+    
     
 
 
-def continuity_computation(neural_properties_list, spec_files, audioevt_properties, channels_of_interest, neural_window, spectral_window, neural_bin_size=1, spectral_bin_size=80, n_neighbors = 10):
+def continuity_computation(neural_properties_list, spec_files, audioevt_properties, channels_of_interest, neural_window, spectral_window, neural_bin_size=1, spectral_bin_size=80, n_neighbors = 10, syllable_path_pairs=None):
     '''
     Returns a pandas dataframe with the nearest neighbors and distances
     
@@ -144,14 +181,16 @@ def continuity_computation(neural_properties_list, spec_files, audioevt_properti
     # Spectral Data
     spectral_data = get_spectral_activity(spec_files, audioevt_properties, spectral_window, spectral_bin_size=spectral_bin_size)
     spectral_data_with_index = get_spectral_activity_with_index(spectral_data)
-    syllable_path_pairs = get_syllable_pairs(audioevt_properties, spectral_data)
+    
+    if syllable_path_pairs is None:
+        syllable_path_pairs = get_syllable_pairs(audioevt_properties, spectral_data)
     
     
     def neural_metric(u,v):
-        return _distance_with_alignment(u, v, syllable_path_pairs, is_spectral=False, nchannels=len(channels_of_interest))
+        return _distance_function(u, v, syllable_path_pairs, is_spectral=False, nchannels=len(channels_of_interest), align=True)
 
     def spectral_metric(u,v):
-        return _distance_with_alignment(u, v, syllable_path_pairs, is_spectral=True, nchannels=128)    
+        return _distance_function(u, v, syllable_path_pairs, is_spectral=True, nchannels=128, aign=True)    
 
     # neural knn
     ## All num_syllables nearest neighbors are computed because we need full tables of ranked indexes and distances
