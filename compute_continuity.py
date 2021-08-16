@@ -45,12 +45,15 @@ def emd_extension(u_vec, v_vec, sigma=1):
     
     
 
-def _distance_function(u, v, syllable_path_pairs, is_spectral, nchannels, how_many_bins=-1, align=True, return_aligned_arrays=False):
+def _distance_function(u, v, is_spectral, nchannels, syllable_path_pairs=None, how_many_bins=-1, align=True, return_aligned_arrays=False):
     '''
     u and v are vectors from the spectral or neural data, with the 0th entry representing rendition index.
     The 0th entry is to be used for dtw alignment.
     This function returns the aligned and averaged(along channels) distance.
     '''
+    if align and syllable_path_pairs is None:
+        raise ValueError('To align (time warp), syllable_path_pairs should not be None.')
+    
     ### u and v are vectorized form of (nchannels, number of bins)
     if how_many_bins==-1:
         if len(u.shape)==1:
@@ -77,9 +80,9 @@ def _distance_function(u, v, syllable_path_pairs, is_spectral, nchannels, how_ma
         pair_step_size = 1
     else:
         metric = lambda u,v : emd_extension(u, v)
-        # metric = distance.euclidean
-        num_segs = syllable_path_pairs[(u_id, v_id)][-1][0]+1  ## number of segments = last pair index, meaning the id of the last spectral segment 
-        pair_step_size = how_many_bins/num_segs  ## how many neural_segments correspond to one spectral segment
+        if align: ## needed only if you wish to align
+            num_segs = syllable_path_pairs[(u_id, v_id)][-1][0]+1  ## number of segments = last pair index, meaning the id of the last spectral segment 
+            pair_step_size = how_many_bins/num_segs  ## how many neural_segments correspond to one spectral segment
     
     u_aligned_2d = []
     v_aligned_2d = []
@@ -135,30 +138,28 @@ def _distance_function(u, v, syllable_path_pairs, is_spectral, nchannels, how_ma
         return np.mean(pairwise_distances)
     
     
-def visualize_aligned(sylA, sylB, syllable_path_pairs, is_spectral, channels_of_interest=None, neural_bin_size=None):
+def visualize_aligned(sylA, sylB, is_spectral, channels_of_interest=None, syllable_path_pairs=None, neural_bin_size=None, align=True):
     '''
     Please provide sylA, sylB as vectors
     '''
     
     if is_spectral:
-        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, syllable_path_pairs, is_spectral=is_spectral, nchannels=128, align=True, return_aligned_arrays=True)
-        print(sylA_aligned.shape, sylB_aligned.shape)
+        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, is_spectral=is_spectral, nchannels=128, syllable_path_pairs=syllable_path_pairs, align=align, return_aligned_arrays=True)
+        print(f'Syllable_A spectrogram shape {sylA_aligned.shape}, Syllable_B spectrogram shape{sylB_aligned.shape}')
         plot_spectrogram(sylA_aligned, title='Syllable_A Spectrogram')
         plot_spectrogram(sylB_aligned, title='Syllable_B Spectrogram')
         
     else:
         if channels_of_interest is None or neural_bin_size is None:
             raise ValueError('Please specify channels of interest')
-        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, syllable_path_pairs, is_spectral=is_spectral, nchannels=len(channels_of_interest), align=True, return_aligned_arrays=True)
+        sylA_aligned, sylB_aligned = compute_continuity._distance_function(sylA, sylB, is_spectral=is_spectral, nchannels=len(channels_of_interest), syllable_path_pairs=syllable_path_pairs, align=align, return_aligned_arrays=True)
+        print(f'Syllable_A neural shape {sylA_aligned.shape}, Syllable_B neural shape{sylB_aligned.shape}')
         plot_raster(sylA_aligned, channels_of_interest, neural_bin_size, title='Syllable_A Neural Data')
         plot_raster(sylB_aligned, channels_of_interest, neural_bin_size, title='Syllable_B Neural Data')
         
         
-    
-    
 
-
-def continuity_computation(neural_properties_list, spec_files, audioevt_properties, channels_of_interest, neural_window, spectral_window, neural_bin_size=1, spectral_bin_size=80, n_neighbors = 10, syllable_path_pairs=None):
+def continuity_computation(neural_properties_list, spec_files, audioevt_properties, channels_of_interest, neural_window, spectral_window, neural_bin_size=1, spectral_bin_size=80, n_neighbors = 10, syllable_path_pairs=None, align=True):
     '''
     Returns a pandas dataframe with the nearest neighbors and distances
     
@@ -182,15 +183,17 @@ def continuity_computation(neural_properties_list, spec_files, audioevt_properti
     spectral_data = get_spectral_activity(spec_files, audioevt_properties, spectral_window, spectral_bin_size=spectral_bin_size)
     spectral_data_with_index = get_spectral_activity_with_index(spectral_data)
     
-    if syllable_path_pairs is None:
+    if syllable_path_pairs is None and align:
         syllable_path_pairs = get_syllable_pairs(audioevt_properties, spectral_data)
+    if not align:
+        syllable_path_pairs = None
     
     
     def neural_metric(u,v):
-        return _distance_function(u, v, syllable_path_pairs, is_spectral=False, nchannels=len(channels_of_interest), align=True)
+        return _distance_function(u, v, is_spectral=False, nchannels=len(channels_of_interest), syllable_path_pairs=syllable_path_pairs, align=align)
 
     def spectral_metric(u,v):
-        return _distance_function(u, v, syllable_path_pairs, is_spectral=True, nchannels=128, aign=True)    
+        return _distance_function(u, v, is_spectral=True, nchannels=128, syllable_path_pairs=syllable_path_pairs, aign=align)    
 
     # neural knn
     ## All num_syllables nearest neighbors are computed because we need full tables of ranked indexes and distances
