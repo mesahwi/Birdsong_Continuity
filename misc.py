@@ -56,12 +56,13 @@ def get_spectral_activity_with_index(spectral_activity):
     return np.concatenate((np.arange(spectral_activity.shape[0]).reshape((spectral_activity.shape[0],1)),spectral_activity), axis=1)
    
     
-def plot_spectrogram(spectral_activity, title='Syllable Spectrogram', sr=20000, hop_length=80):
+def plot_spectrogram(spectral_rendition, title='Syllable Spectrogram', sr=20000, hop_length=80):
     '''
+    Spectral rendition should be a 2d array with shape (n_channels, timepoints)
     Draws a spectrogram of the spectral activity
     '''
     fig, ax = plt.subplots(1,1, figsize=(8, 5))
-    librosa.display.specshow(spectral_activity[0].reshape((128,-1)), x_axis='time', sr=sr, hop_length=hop_length)
+    librosa.display.specshow(spectral_rendition, x_axis='time', sr=sr, hop_length=hop_length)
     plt.colorbar();
     plt.tight_layout();
     ax.set_xlabel('Time (s)')
@@ -144,11 +145,11 @@ def get_neural_activity_with_index(neural_activity):
     return np.concatenate((np.arange(neural_activity.shape[0]).reshape((neural_activity.shape[0],1)),neural_activity), axis=1)
 
 
-def plot_raster(neural_data, rendition_number, channels_of_interest, neural_bin_size, x_tick_every=50, y_tick_every=30, figsize=(10,10)):
+def plot_raster(neural_rendition, channels_of_interest, neural_bin_size, x_tick_every=50, y_tick_every=30, figsize=(10,10), title=""):
     '''
     Draws a raster plot, given neural rendtion and channels of interest
     '''
-    neural_rendition = neural_data[rendition_number].reshape(len(channels_of_interest),-1)
+    # neural_rendition = neural_data[rendition_number].reshape(len(channels_of_interest),-1)
     num_channels, num_timepoints = neural_rendition.shape
     
     fig, ax = plt.subplots(1,1, figsize=figsize)
@@ -161,6 +162,7 @@ def plot_raster(neural_data, rendition_number, channels_of_interest, neural_bin_
     ax.set_yticks(np.arange(0,num_channels, y_tick_every))
     ax.set_yticklabels(channels_of_interest[::y_tick_every])
     ax.set_ylabel('Channel id')
+    ax.set_title(title)
     im = ax.imshow(neural_rendition);
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
