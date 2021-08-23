@@ -155,7 +155,7 @@ def plot_raster(neural_rendition, channels_of_interest, neural_bin_size, x_tick_
     fig, ax = plt.subplots(1,1, figsize=figsize)
     ax.set_xticks(np.arange(0,num_timepoints,x_tick_every))
     if neural_bin_size is not None and neural_bin_size>0:
-        ax.set_xticklabels(np.arange(0,num_timepoints,x_tick_every)/samples2ms(neural_bin_size))
+        ax.set_xticklabels(np.arange(0,num_timepoints,x_tick_every)*samples2ms(neural_bin_size))
         ax.set_xlabel('Time (ms)')
     else:
         ax.set_xlabel('Timepoints')
