@@ -184,16 +184,32 @@ def path_for_pair(sylA, sylB, nrows=128):
     return pth
     
     
-def get_syllable_pairs(audioevt_properties, spectral_activity):
+def get_syllable_pairs(audioevt_properties, spectral_activity, nrows=128):
     '''
-    Computes the time warped paths between syllable rendition pairs, for every pair.
+    THIS FUNCTION IS TAILORED TO THE DATASET USED IN THE PROJECT!!!
+    
+    Computes the time warped paths between syllable rendition pairs, for every pair (where time warping is appropriate).
     Could be a memory hog, might want to make it lighter
     '''
+    
     syllable_path_pairs = {}
     # print('Computing DTW, and pairing syllables')
     for i in audioevt_properties['evt_id']:
         for j in audioevt_properties['evt_id']:
-            syllable_path_pairs[(i,j)] = path_for_pair(spectral_activity[i,:],spectral_activity[j,:])
+            activity_i = spectral_activity[i,:].reshape(nrows, -1)
+            activity_j = spectral_activity[j,:].reshape(nrows, -1)
+            cutoff_i = min(audioevt_properties['cutoff'][i], activity_i.shape[1])
+            cutoff_j = min(audioevt_properties['cutoff'][j], activity_j.shape[1])
+            warped = path_for_pair(activity_i[:,:cutoff_i], activity_j[:,:cutoff_j])
+            
+            if audioevt_properties['cutoff'][i]==cutoff_i and audioevt_properties['cutoff'][j]==cutoff_j:
+                rest = activity_i.shape[1] - max(cutoff_i, cutoff_j)
+                for k in range(rest):
+                    appending_pair = (warped[-1][0]+1, warped[-1][1]+1)
+                    warped.append(appending_pair)
+            
+            syllable_path_pairs[(i,j)] = warped
+            
             
     # print('Done with DTW')
     return syllable_path_pairs
