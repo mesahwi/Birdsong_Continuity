@@ -80,7 +80,7 @@ def _distance_function(u, v, is_spectral, nchannels, syllable_path_pairs=None, h
     else:
         metric = lambda u,v : emd_extension(u, v)
         if align: ## needed only if you wish to align
-            num_segs = syllable_path_pairs[(u_id, v_id)][-1][0]+1  ## number of segments = last pair index, meaning the id of the last spectral segment 
+            num_segs = max(syllable_path_pairs[(u_id, v_id)][-1])+1  ## number of segments = last pair index, meaning the id of the last spectral segment 
             pair_step_size = how_many_bins/num_segs  ## how many neural_segments correspond to one spectral segment
     
     u_aligned_2d = []
