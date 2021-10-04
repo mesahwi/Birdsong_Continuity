@@ -211,9 +211,9 @@ def continuity_computation(neural_properties_list, spec_files, audioevt_properti
     neural_nearest_k_distances = []
     neural_nearest_k_avg_distances = []
     for id in audioevt_properties['evt_id']:
-        neural_nearest_k_ids.append(neural_indexes[id][1:n_neighbors+1])
-        neural_nearest_k_distances.append(neural_distances[id][1:n_neighbors+1])
-        neural_nearest_k_avg_distances.append(np.mean(neural_distances[id][1:n_neighbors+1]))
+        neural_nearest_k_ids.append(neural_indexes[id][1:min(n_neighbors+1, neural_data.shape[0])])
+        neural_nearest_k_distances.append(neural_distances[id][1:min(n_neighbors+1, neural_data.shape[0])])
+        neural_nearest_k_avg_distances.append(np.mean(neural_distances[id][1:min(n_neighbors+1, neural_data.shape[0])]))
 
     audioevt_properties['NNN_id'] = neural_nearest_k_ids
     audioevt_properties['NNN_dist'] = neural_nearest_k_distances
@@ -229,9 +229,9 @@ def continuity_computation(neural_properties_list, spec_files, audioevt_properti
     spectral_nearest_k_distances = []
     spectral_nearest_k_avg_distances = []
     for id in audioevt_properties['evt_id']:
-        spectral_nearest_k_ids.append(spectral_indexes[id][1:n_neighbors+1])
-        spectral_nearest_k_distances.append(spectral_distances[id][1:n_neighbors+1])
-        spectral_nearest_k_avg_distances.append(np.mean(spectral_distances[id][1:n_neighbors+1]))
+        spectral_nearest_k_ids.append(spectral_indexes[id][1:min(n_neighbors+1, spectral_data.shape[0])])
+        spectral_nearest_k_distances.append(spectral_distances[id][1:min(n_neighbors+1, spectral_data.shape[0])])
+        spectral_nearest_k_avg_distances.append(np.mean(spectral_distances[id][1:min(n_neighbors+1, spectral_data.shape[0])]))
 
     audioevt_properties['NSN_id'] = spectral_nearest_k_ids
     audioevt_properties['NSN_dist'] = spectral_nearest_k_distances
@@ -282,14 +282,20 @@ def continuity_computation(neural_properties_list, spec_files, audioevt_properti
 
         id = syllable['evt_id']
         CSS_Rmin = syllable['CSS_avg'] / syllable['NSN_avg']
-        RSS_dist = spectral_distances[id, n_neighbors+1:]  ## distances for the rest of the neighbors
-        RSS_avg = np.mean(RSS_dist)
-        RSS_Ravg = RSS_avg / syllable['NSN_avg']
+        if min(n_neighbors+1, spectral_data.shape[0]) == spectral_distances.shape[1]:
+            RSS_Ravg = np.nan
+        else:
+            RSS_dist = spectral_distances[id, min(n_neighbors+1, spectral_data.shape[0]):]  ## distances for the rest of the neighbors
+            RSS_avg = np.mean(RSS_dist)
+            RSS_Ravg = RSS_avg / syllable['NSN_avg']
 
         CNS_Rmin = syllable['CNS_avg'] / syllable['NNN_avg']
-        RNS_dist = neural_distances[id, n_neighbors+1:]  ## distances for the rest of the neighbors
-        RNS_avg = np.mean(RNS_dist)
-        RNS_Ravg = RNS_avg / syllable['NNN_avg']
+        if min(n_neighbors+1, neural_data.shape[0]) == neural_distances.shape[1]:
+            RNS_Ravg = np.nan
+        else:
+            RNS_dist = neural_distances[id, min(n_neighbors+1, neural_data.shape[0]):]  ## distances for the rest of the neighbors
+            RNS_avg = np.mean(RNS_dist)
+            RNS_Ravg = RNS_avg / syllable['NNN_avg']
 
         CSS_Rmins.append(CSS_Rmin)
         RSS_Ravgs.append(RSS_Ravg)
